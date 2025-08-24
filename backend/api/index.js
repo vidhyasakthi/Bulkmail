@@ -9,20 +9,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Use environment variable for MongoDB connection
-mongoose.connect(process.env.MONGO_URI).then(function () {
+// ✅ MongoDB connection
+mongoose.connect(process.env.MONGO_URI).then(() => {
     console.log("Database Connected...");
-}).catch(function (err) {
+}).catch((err) => {
     console.log("Failed to Connect:", err);
 });
 
 const credential = mongoose.model("credential", {}, "bulkmail");
 
-app.post("/sendemail", function (req, res) {
+// ✅ Root route to avoid 404 on base URL
+app.get("/", (req, res) => {
+    res.send("Bulk Mail Backend is running!");
+});
+
+// ✅ Favicon route to silence browser requests
+app.get("/favicon.ico", (req, res) => res.status(204).end());
+
+// ✅ Email sending route
+app.post("/sendemail", async (req, res) => {
     const msg = req.body.msg;
     const emailList = req.body.emailList;
 
-    credential.find().then(function (data) {
+    try {
+        await credential.find(); // Optional: use data if needed
+
         const transporter = nodemailer.createTransport({
             service: "gmail",
             auth: {
@@ -31,30 +42,21 @@ app.post("/sendemail", function (req, res) {
             },
         });
 
-        new Promise(async function (resolve, reject) {
-            try {
-                for (let i = 0; i < emailList.length; i++) {
-                    await transporter.sendMail({
-                        from: process.env.MAIL_FROM,
-                        to: emailList[i],
-                        subject: "A Message from Bulk Mail App",
-                        text: msg,
-                    });
-                    console.log("Email sent to: " + emailList[i]);
-                }
-                resolve("Success");
-            } catch (error) {
-                console.log("Error sending email:", error);
-                reject("Failed");
-            }
-        }).then(function () {
-            res.send(true);
-        }).catch(function () {
-            res.send(false);
-        });
-    }).catch(function (error) {
-        console.log("Error fetching credentials:", error);
-    });
+        for (let i = 0; i < emailList.length; i++) {
+            await transporter.sendMail({
+                from: process.env.MAIL_FROM,
+                to: emailList[i],
+                subject: "A Message from Bulk Mail App",
+                text: msg,
+            });
+            console.log("Email sent to:", emailList[i]);
+        }
+
+        res.send(true);
+    } catch (error) {
+        console.log("Error sending email:", error);
+        res.send(false);
+    }
 });
 
 // ✅ Export the app for Vercel
