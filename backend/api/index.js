@@ -57,6 +57,5 @@ app.post("/sendemail", function (req, res) {
     });
 });
 
-app.listen(5000, function () {
-    console.log("Server Started on port 5000...");
-});
+// ✅ Export the app for Vercel
+module.exports = app;
